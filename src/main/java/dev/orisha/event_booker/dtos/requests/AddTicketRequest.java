@@ -12,5 +12,6 @@ public class AddTicketRequest {
     private Long eventId;
     private BigDecimal price;
     private BigDecimal discount;
+    private int availableTickets;
     private Type type;
 }

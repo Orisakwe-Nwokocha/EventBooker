@@ -17,6 +17,7 @@ public class AddTicketResponse {
     private Long eventId;
     private BigDecimal price;
     private BigDecimal discount;
+    private int availableTickets;
     private Type type;
     @JsonFormat(pattern = "dd-MMMM-yyyy 'at' hh:mm a")
     private LocalDateTime dateCreated;

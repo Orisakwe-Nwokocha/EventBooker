@@ -2,31 +2,39 @@ package dev.orisha.event_booker.services.impls;
 
 import dev.orisha.event_booker.data.constants.Type;
 import dev.orisha.event_booker.data.models.Event;
+import dev.orisha.event_booker.data.models.ReservedTicket;
 import dev.orisha.event_booker.data.models.Ticket;
+import dev.orisha.event_booker.data.repositories.ReservedTicketRepository;
 import dev.orisha.event_booker.data.repositories.TicketRepository;
 import dev.orisha.event_booker.dtos.requests.AddTicketRequest;
 import dev.orisha.event_booker.dtos.requests.PurchaseTicketRequest;
+import dev.orisha.event_booker.dtos.requests.ReserveTicketRequest;
 import dev.orisha.event_booker.dtos.responses.ApiResponse;
 import dev.orisha.event_booker.dtos.responses.GetAllTicketsResponse;
 import dev.orisha.event_booker.dtos.responses.PurchaseTicketResponse;
+import dev.orisha.event_booker.dtos.responses.ReserveTicketResponse;
 import dev.orisha.event_booker.exceptions.BadRequestException;
 import dev.orisha.event_booker.exceptions.ResourceNotFoundException;
 import dev.orisha.event_booker.services.TicketService;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static dev.orisha.event_booker.services.utils.ServicesUtils.buildApiResponse;
 import static java.math.BigDecimal.ZERO;
+import static java.time.LocalDateTime.now;
 
 @Service
 @AllArgsConstructor
 public class EventBookerTicketService implements TicketService {
 
     private final TicketRepository ticketRepository;
+    private final ReservedTicketRepository reservedTicketRepository;
 
     private final ModelMapper mapper;
 
@@ -35,6 +43,42 @@ public class EventBookerTicketService implements TicketService {
         Ticket newTicket = mapper.map(request, Ticket.class);
         newTicket.setEvent(event);
         return ticketRepository.save(newTicket);
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<ReserveTicketResponse> reserveTicket(ReserveTicketRequest request) {
+        Ticket ticket = getBy(request.getTicketId());
+        int quantity = request.getQuantity();
+        Integer availableTickets = ticket.getAvailableTickets();
+        validate(quantity, availableTickets);
+        LocalDateTime expiryDate = validateAndGetExpiryDateFrom(ticket.getEvent());
+        ReservedTicket reservedTicket = mapper.map(request, ReservedTicket.class);
+        reservedTicket.setTicket(ticket);
+        reservedTicket = reservedTicketRepository.save(reservedTicket);
+        ticket.setAvailableTickets(availableTickets - quantity);
+        ticket = ticketRepository.save(ticket);
+        return apiResponse(reservedTicket, ticket.getId(), expiryDate);
+    }
+
+    private ApiResponse<ReserveTicketResponse> apiResponse(ReservedTicket reservedTicket,
+                                                           Long ticketId,
+                                                           LocalDateTime expiryDate) {
+        ReserveTicketResponse response = mapper.map(reservedTicket, ReserveTicketResponse.class);
+        response.setTicketId(ticketId);
+        response.setExpiryDate(expiryDate);
+        return buildApiResponse(response);
+    }
+
+    private static LocalDateTime validateAndGetExpiryDateFrom(Event event) {
+        LocalDateTime expiryDate = event.getEventDate().minusDays(1);
+        if (now().isAfter(expiryDate)) throw new BadRequestException("Ticket is no longer available");
+        return expiryDate;
+    }
+
+    private static void validate(int requestedQuantity, Integer availableTickets) {
+        if (requestedQuantity <= 0) throw new BadRequestException("Number of tickets must be greater than 0");
+        if (requestedQuantity > availableTickets) throw new IllegalStateException("Not enough available tickets");
     }
 
     @Override

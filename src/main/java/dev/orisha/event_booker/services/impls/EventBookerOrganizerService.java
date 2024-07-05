@@ -62,6 +62,7 @@ public class EventBookerOrganizerService implements OrganizerService {
     }
 
     @Override
+    @Transactional
     public ApiResponse<AddTicketResponse> addTicketToEvent(AddTicketRequest request) {
         Event event = eventService.getEventBy(request.getEventId());
         Ticket ticket = ticketService.saveTicket(request, event);

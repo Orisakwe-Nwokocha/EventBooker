@@ -1,9 +1,11 @@
 package dev.orisha.event_booker.services;
 
 import dev.orisha.event_booker.dtos.requests.PurchaseTicketRequest;
+import dev.orisha.event_booker.dtos.requests.ReserveTicketRequest;
 import dev.orisha.event_booker.dtos.responses.ApiResponse;
 import dev.orisha.event_booker.dtos.responses.GetAllTicketsResponse;
 import dev.orisha.event_booker.dtos.responses.PurchaseTicketResponse;
+import dev.orisha.event_booker.dtos.responses.ReserveTicketResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,7 +15,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static dev.orisha.event_booker.utils.TestUtils.buildPurchaseTicketRequest;
-import static java.math.BigDecimal.valueOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -22,6 +23,16 @@ class TicketServiceTest {
     @Autowired
     private TicketService ticketService;
 
+    @Test
+    public void reserveTicketTest() {
+        ReserveTicketRequest request = new ReserveTicketRequest();
+        request.setTicketId(300L);
+        request.setEmail("test@email.com");
+        request.setQuantity(2);
+        ApiResponse<ReserveTicketResponse> response = ticketService.reserveTicket(request);
+        assertThat(response).isNotNull();
+        assertThat(response.getData()).isNotNull();
+    }
 
     @Test
     void purchaseTicketTest() {

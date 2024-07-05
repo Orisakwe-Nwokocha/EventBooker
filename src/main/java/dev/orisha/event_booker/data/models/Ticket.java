@@ -26,6 +26,7 @@ public class Ticket {
     private Long id;
     private BigDecimal price;
     private BigDecimal discount;
+    private Integer availableTickets;
 
     @ElementCollection(fetch = EAGER)
     private List<String> buyerEmails = new ArrayList<>();

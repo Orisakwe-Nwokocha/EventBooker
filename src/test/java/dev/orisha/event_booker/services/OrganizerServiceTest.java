@@ -67,6 +67,7 @@ class OrganizerServiceTest {
         AddTicketRequest request = new AddTicketRequest();
         request.setEventId(200L);
         request.setType(REGULAR);
+        request.setAvailableTickets(58);
         request.setPrice(valueOf(2000));
         ApiResponse<AddTicketResponse> response = organizerService.addTicketToEvent(request);
         assertThat(response).isNotNull();
