@@ -7,6 +7,7 @@ import lombok.Setter;
 @Setter
 public class PurchaseTicketRequest {
     private Long ticketId;
+    private Long reservedTicketId;
     private String name;
     private String email;
     private String cardNumber;

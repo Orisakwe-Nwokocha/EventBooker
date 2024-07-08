@@ -71,7 +71,7 @@ public class EventBookerTicketService implements TicketService {
     }
 
     private static LocalDateTime validateAndGetExpiryDateFrom(Event event) {
-        LocalDateTime expiryDate = event.getEventDate().minusDays(1);
+        LocalDateTime expiryDate = event.getEventDate().minusDays(5);
         if (now().isAfter(expiryDate)) throw new BadRequestException("Ticket is no longer available");
         return expiryDate;
     }
@@ -83,19 +83,41 @@ public class EventBookerTicketService implements TicketService {
 
     @Override
     public ApiResponse<PurchaseTicketResponse> purchaseTicket(PurchaseTicketRequest request) {
-        int numberOfTickets = request.getNumberOfTickets();
-        if (numberOfTickets <= 0) throw new BadRequestException("Number of Tickets must be greater than 0");
         Ticket ticket = getBy(request.getTicketId());
+        int numberOfTickets = request.getNumberOfTickets();
+        LocalDateTime eventDate = ticket.getEvent().getEventDate();
+        boolean isExpired = now().isAfter(eventDate.minusDays(5));
+        if (isExpired) ticket = trackReservedTicketsFor(ticket);
+        validate(request.getReservedTicketId(), eventDate.minusDays(1), numberOfTickets, ticket);
         Type type = ticket.getType();
         BigDecimal discount = ticket.getDiscount();
-        if (type.getMargin() > numberOfTickets) discount = ZERO;
+        if (type.getMargin() > numberOfTickets || discount == null) discount = ZERO;
         BigDecimal purchaseAmount = getPurchaseAmount(ticket, numberOfTickets, discount);
         for (int count= 0; count < numberOfTickets; count++) ticket.getBuyerEmails().add(request.getEmail());
+        ticket.setAvailableTickets(ticket.getAvailableTickets() - numberOfTickets);
         ticketRepository.save(ticket);
         PurchaseTicketResponse response = 
                 new PurchaseTicketResponse(numberOfTickets, purchaseAmount,
                         "Ticket purchased successfully");
         return buildApiResponse(response);
+    }
+
+    private static void validate(Long reservedTicketId, LocalDateTime expiryDate,
+                                 int numberOfTickets, Ticket ticket) {
+        if (reservedTicketId == null) {
+            if (now().isAfter(expiryDate)) throw new BadRequestException("Ticket is no longer available");
+        }
+        validate(numberOfTickets, ticket.getAvailableTickets());
+    }
+
+    private Ticket trackReservedTicketsFor(Ticket ticket) {
+        List<ReservedTicket> reservedTickets =
+                reservedTicketRepository.findReservedTicketsFor(ticket.getId());
+        for (ReservedTicket reservedTicket : reservedTickets) {
+            int quantity = reservedTicket.getQuantity();
+            ticket.setAvailableTickets(ticket.getAvailableTickets() + quantity);
+        }
+        return ticketRepository.save(ticket);
     }
 
     private static BigDecimal getPurchaseAmount(Ticket ticket, int numberOfTickets, BigDecimal discount) {
