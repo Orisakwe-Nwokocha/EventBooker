@@ -116,6 +116,7 @@ public class EventBookerTicketService implements TicketService {
         for (ReservedTicket reservedTicket : reservedTickets) {
             int quantity = reservedTicket.getQuantity();
             ticket.setAvailableTickets(ticket.getAvailableTickets() + quantity);
+            reservedTicketRepository.delete(reservedTicket);
         }
         return ticketRepository.save(ticket);
     }
