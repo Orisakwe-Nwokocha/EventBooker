@@ -89,6 +89,7 @@ public class EventBookerTicketService implements TicketService {
         boolean isExpired = now().isAfter(eventDate.minusDays(5));
         if (isExpired) ticket = trackReservedTicketsFor(ticket);
         validate(request.getReservedTicketId(), eventDate.minusDays(1), numberOfTickets, ticket);
+        ticket = getBy(request.getTicketId());
         Type type = ticket.getType();
         BigDecimal discount = ticket.getDiscount();
         if (type.getMargin() > numberOfTickets || discount == null) discount = ZERO;
@@ -102,12 +103,24 @@ public class EventBookerTicketService implements TicketService {
         return buildApiResponse(response);
     }
 
-    private static void validate(Long reservedTicketId, LocalDateTime expiryDate,
+    private void validate(Long reservedTicketId, LocalDateTime expiryDate,
                                  int numberOfTickets, Ticket ticket) {
+        Integer availableTickets = ticket.getAvailableTickets();
         if (reservedTicketId == null) {
             if (now().isAfter(expiryDate)) throw new BadRequestException("Ticket is no longer available");
+        } else {
+            availableTickets = validate(reservedTicketId, ticket);
         }
-        validate(numberOfTickets, ticket.getAvailableTickets());
+        validate(numberOfTickets, availableTickets);
+    }
+
+    private Integer validate(Long reservedTicketId, Ticket ticket) {
+        ReservedTicket reservedTicket = reservedTicketRepository.findById(reservedTicketId)
+                .orElseThrow(()-> new ResourceNotFoundException("Reserved ticket invalid or expired"));
+        ticket.setAvailableTickets(ticket.getAvailableTickets() + reservedTicket.getQuantity());
+        reservedTicketRepository.delete(reservedTicket);
+        ticket = ticketRepository.save(ticket);
+        return ticket.getAvailableTickets();
     }
 
     private Ticket trackReservedTicketsFor(Ticket ticket) {
